@@ -2,6 +2,18 @@
 
 import csv, re, datetime
 import pandas as pd
+import numpy as np
+import rdflib
+
+from rdflib.namespace import RDF, RDFS
+SSN=rdflib.Namespace(r'http://www.w3.org/ns/ssn/')
+SOSA=rdflib.Namespace(r'http://www.w3.org/ns/sosa/')
+TIME=rdflib.Namespace(r'http://www.w3.org/2006/time#')
+BOO=rdflib.Namespace(r'http://www.purl.org/berg/ontology/objects#')
+QUANTITYKIND=rdflib.Namespace(r'http://qudt.org/2.1/vocab/quantitykind/')
+UNIT=rdflib.Namespace(r'http://qudt.org/vocab/unit/')
+QUDT=rdflib.Namespace(r'http://qudt.org/schema/qudt/')
+
 
 class HoboReader():
     """
@@ -14,6 +26,111 @@ class HoboReader():
         if fp: self.read_csv(fp)
     
     
+    def get_rdf(self,
+                my_sensor_id=r'http:www.example.org/my_sensor',
+                my_sensor_model='My sensor model',
+                my_sensor_manufacturer='Onset',
+                my_feature_of_interest_id='rhttp:www.example.org/my_feature_of_interest'
+                ):
+        
+        g=rdflib.Graph()
+        g.bind('ssn', SSN)
+        g.bind('sosa', SOSA)
+        g.bind('time', TIME)
+        g.bind('boo',BOO)
+        g.bind('quantitykind',QUANTITYKIND)
+        g.bind('unit',UNIT)
+        g.bind('qudt',QUDT)
+    
+        df=self.get_dataframe()
+        
+        add_rdf_sensor(g,my_sensor_id)
+        
+        add_rdf_feature_of_interest(g,my_feature_of_interest_id)
+        
+        property_labels=get_rdf_property_labels(self.header_list)
+        for p_label in property_labels:
+            FoI_uri=get_feature_of_interest_uri(g,
+                                                p_label,
+                                                self.header_list,
+                                                my_sensor_id,
+                                                my_feature_of_interest_id)
+            pk_uri=get_qudt_quantity_kind(p_label)
+            
+            try:
+                get_rdf_property_uri(g,p_label)
+            except KeyError:
+                add_rdf_property(g,p_label,FoI_uri,pk_uri)
+        
+        sn=get_sensor_serial_number(self.header_list)
+        
+        # serial number
+        add_observation(g,
+                ObservableProperty_uri=get_rdf_property_uri(g,"Serial number"),
+                FoI_uri=rdflib.URIRef(my_sensor_id),
+                simple_result_uri=rdflib.Literal(sn)
+               )
+        
+        # model
+        add_observation(g,
+                ObservableProperty_uri=get_rdf_property_uri(g,"Model"),
+                FoI_uri=rdflib.URIRef(my_sensor_id),
+                simple_result_uri=rdflib.Literal(my_sensor_model)
+               )
+
+        # manufacturer
+        add_observation(g,
+                ObservableProperty_uri=get_rdf_property_uri(g,"Manufacturer"),
+                FoI_uri=rdflib.URIRef(my_sensor_id),
+                simple_result_uri=rdflib.Literal(my_sensor_manufacturer)
+               )
+        
+        for col in df.columns:
+            if not col[0] in ['#','Date Time']:
+                
+                title,timezone_str,units,logger_serial_number,sensor_serial_number=col
+                
+                p_uri=get_rdf_property_uri(g,title)
+                
+                if not pd.isna(sensor_serial_number):
+                    Sensor_uri=rdflib.URIRef(my_sensor_id)
+                    FoI_uri=rdflib.URIRef(my_feature_of_interest_id)
+                else:
+                    Sensor_uri=None
+                    FoI_uri=rdflib.URIRef(my_sensor_id)
+                
+                s=df[col]
+                s=s.dropna()
+                
+                for i,v in s.iteritems():
+                    
+                    if not pd.isna(units):
+                        
+                        units_uri=get_units_uri(units)
+                        
+                        add_observation(g,
+                                        ObservableProperty_uri=p_uri,
+                                        FoI_uri=FoI_uri,
+                                        Sensor_uri=Sensor_uri,
+                                        qudt_result=(rdflib.Literal(v),units_uri),
+                                        result_time_instant=rdflib.Literal(i.isoformat(),
+                                                                           datatype=rdflib.XSD.dateTimeStamp)
+                                       )
+                        
+                    else:
+                    
+                        add_observation(g,
+                                        ObservableProperty_uri=p_uri,
+                                        FoI_uri=FoI_uri,
+                                        Sensor_uri=Sensor_uri,
+                                        simple_result_uri=rdflib.Literal(v),
+                                        result_time_instant=rdflib.Literal(i.isoformat(),
+                                                                           datatype=rdflib.XSD.dateTimeStamp)
+                                       )        
+                
+        return g
+        
+        
     def read_csv(self,fp):
         """
         """
@@ -58,6 +175,17 @@ class HoboReader():
         columns=get_dataframe_column_multiindex(self,self.header_list)
         index=pd.Index(self.datetimes, name='datetimes')
         df=pd.DataFrame(columns=columns,data=self.data_rows,index=index)
+        
+        df=df.replace('',np.nan)
+    
+        # convert strings to numerical values where possible
+        for col in df.columns:
+            if not col[0] in ['#','Date Time']:
+                try:
+                    df[col]=pd.to_numeric(df[col])
+                except ValueError:
+                    pass
+        
         return df
             
             
@@ -184,8 +312,147 @@ class HoboReader():
         return list(zip(*data_rows))
     
     
+# rdf functions
+    
+def add_rdf_sensor(g,my_sensor_id):
+    qu = \
+    """
+        INSERT DATA
+        {
+            <%s> a sosa:Sensor ;
+                a ssn:System ;
+                a sosa:FeatureOfInterest ;
+                a boo:PhysicalObject .
+        }
+    """ % (rdflib.URIRef(my_sensor_id))
+    g.update(qu)
     
     
+def add_rdf_feature_of_interest(g,my_FoI_id):
+    qu = \
+    """
+        INSERT DATA
+        {
+            <%s> a sosa:FeatureOfInterest ;
+                a boo:PhysicalObject .
+        }
+    """ % (rdflib.URIRef(my_FoI_id))
+    g.update(qu)
+    
+    
+def get_rdf_property_labels(header_list):
+    return ['Serial number','Model','Manufacturer'] + [x['title'] 
+            for x in header_list if x['logger_serial_number']]
+
+
+def get_feature_of_interest_uri(g,property_label,header_list,
+                                my_sensor_id,my_feature_of_interest_id):
+    for header_dict in header_list:
+        if header_dict['title']==property_label:
+            if header_dict['sensor_serial_number']:
+                return rdflib.URIRef(my_feature_of_interest_id)
+    return rdflib.URIRef(my_sensor_id) 
+
+
+def get_qudt_quantity_kind(property_label):
+    if property_label=='Temp': return QUANTITYKIND.Temperature
+    #additions needed
+    return None
+
+
+def get_rdf_property_uri(g,p_label):
+    
+    q = \
+    """
+        SELECT ?s
+        WHERE
+        {
+            ?s a ssn:Property ;
+                a sosa:ObservableProperty ;
+                rdfs:label "%s" .
+        }
+    """ % str(p_label)
+    #print(q)
+    qres = g.query(q)
+    #print (list(qres))
+    try:
+        return list(qres)[0][0]
+    except IndexError:
+        raise KeyError()
+        
+        
+def add_rdf_property(g,p_label,FoI_uri,pk_uri=None):
+    
+    b=rdflib.BNode()
+    
+    g.add( (b, RDF.type, SSN.Property) )
+    g.add( (b, RDF.type, SOSA.ObservableProperty) )
+    g.add( (b, RDFS.label, rdflib.Literal(p_label)) )
+    g.add( (b, SSN.isPropertyOf, FoI_uri) )
+    g.add( (FoI_uri, SSN.hasProperty, b) )
+    
+    if pk_uri:
+        g.add( (b, QUDT.hasQuantityKind, pk_uri) )
+        g.add( (pk_uri, QUDT.isQuantityKindOf, b) )
+        
+        
+def add_observation(g,
+                    ObservableProperty_uri=None,
+                    FoI_uri=None,
+                    Sensor_uri=None,       
+                    simple_result_uri=None,
+                    qudt_result=None,
+                    result_time_instant=None):
+    
+    n=rdflib.BNode()
+    
+    g.add( (n, RDF.type, SOSA.Observation) )
+    
+    if ObservableProperty_uri:
+        g.add( (n, SOSA.observedProperty, ObservableProperty_uri) )
+        
+    if FoI_uri:
+        g.add( (n, SOSA.hasFeatureOfInterest, FoI_uri) )
+        g.add( (FoI_uri, SOSA.isFeatureOfInterestOf, n) )
+        
+    if Sensor_uri:
+        g.add( (Sensor_uri, SOSA.madeObservation, n) )
+        g.add( (n, SOSA.madeBySensor, Sensor_uri) )
+        
+    if simple_result_uri: 
+        g.add( (n, SOSA.hasSimpleResult, simple_result_uri) )
+        
+    if qudt_result:
+        value=qudt_result[0]
+        units_uri=qudt_result[1]
+        b=rdflib.BNode()
+        g.add( (n, SOSA.hasResult, b) )
+        g.add( (b, RDF.type, QUDT.QuantityValue) )
+        g.add( (b, QUDT.numericValue, value) )
+        g.add( (b, QUDT.unit, units_uri) )
+    
+    if result_time_instant:
+        b=rdflib.BNode()
+        g.add( (n, SOSA.resultTime, b) )
+        g.add( (b, RDF.type, TIME.Instant) )
+        g.add( (b, TIME.inXSDDateTimeStamp, result_time_instant) )
+        
+        
+def get_sensor_serial_number(header_list):
+    for header_dict in header_list:
+        if header_dict['sensor_serial_number']:
+            return header_dict['sensor_serial_number']
+
+    
+def get_units_uri(unit_str):
+    if unit_str=='Â°F': return UNIT.DEG_F
+    if unit_str=='Â°C': return UNIT.DEG_C
+    # ADDITIONS NEEDED
+    return rdflib.Literal(unit_str)
+    
+    
+
+
     
 if __name__=="__main__":
     
@@ -194,5 +461,9 @@ if __name__=="__main__":
     print(h.header_list)
     print(h.datetimes[:5])
     print(h.get_dataframe())
-    
+    g=h.get_rdf(my_sensor_id=r'http://www.example.org/MyHobo',
+            my_sensor_model='Hobo Pendant',
+            my_sensor_manufacturer='Onset',
+            my_feature_of_interest_id=r'http://www.example.org/MyLivingRoom')
+    print(g.serialize(format='turtle').decode())
     
