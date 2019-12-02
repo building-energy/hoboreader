@@ -34,7 +34,7 @@ class HoboReader():
             
             def get_date_time_column_index(header_list):
                 for header_dict in header_list:
-                    if header_dict['title']=='Date Time':
+                    if header_dict['title'] in ['Time','Date Time']:
                         return header_dict['column']
                     
             col=get_date_time_column_index(header_list)
@@ -99,14 +99,14 @@ class HoboReader():
                 
         
         def get_title(header):
-            result = re.search('(.*?)((,| [(])|$)', header)
+            result = re.search('(.*?)((,|[(])|$)', header)
             try:
-                return result.group(1)
+                return result.group(1).strip()
             except AttributeError:
                 return None
         
         def get_timezone_str(header):
-            result = re.search('Date Time, (.*)', header)
+            result = re.search('Time, (.*)', header)
             try:
                 return result.group(1)
             except AttributeError:
@@ -114,9 +114,9 @@ class HoboReader():
         
         
         def get_units(header):
-            result = re.search(', (.*) [(]', header)
+            result = re.search(', (.*)[(]', header)
             try:
-                return result.group(1)
+                return result.group(1).strip()
             except AttributeError:
                 return None
         
@@ -159,8 +159,10 @@ class HoboReader():
             self.reader = csv.reader(f)
             
             self.header_row=get_header_row(self.reader)
+            #print(self.header_row)
             
             self.header_list=get_header_list(self.header_row)
+            #print(self.header_list)
             
             self.hobo_timezone_str=get_hobo_timezone_str(self.header_list)
             
@@ -269,7 +271,8 @@ class HoboReader():
             
         def get_rdf_property_labels(header_list):
             return ['Serial number','Model','Manufacturer'] + [x['title'] 
-                    for x in header_list if x['logger_serial_number']]
+                    for x in header_list 
+                    if not x['title'] in ['#','Date Time','Time']]
         
         
         def get_feature_of_interest_uri(g,property_label,header_list,
@@ -283,7 +286,8 @@ class HoboReader():
         
         def get_qudt_quantity_kind(property_label):
             if property_label=='Temp': return QUANTITYKIND.Temperature
-            #additions needed
+            if property_label=='RH': return QUANTITYKIND.RelativeHumidity
+            if property_label=='Intensity': return QUANTITYKIND.Illuminance
             return None
         
         
@@ -366,9 +370,10 @@ class HoboReader():
                 
                 
         def get_units_uri(unit_str):
-            if unit_str=='Â°F': return UNIT.DEG_F
-            if unit_str=='Â°C': return UNIT.DEG_C
-            # ADDITIONS NEEDED
+            if unit_str in ['°C','Â°F']: return UNIT.DEG_F
+            if unit_str in ['°C','Â°C']: return UNIT.DEG_C
+            if unit_str=='%': return UNIT.PERCENT
+            if unit_str=='Lux': return UNIT.LUX
             return rdflib.Literal(unit_str)
             
         
@@ -391,7 +396,11 @@ class HoboReader():
         add_rdf_feature_of_interest(g,my_feature_of_interest_id)
         
         property_labels=get_rdf_property_labels(self.header_list)
+        #print(property_labels)
+        
         for p_label in property_labels:
+            #print(p_label)
+            
             FoI_uri=get_feature_of_interest_uri(g,
                                                 p_label,
                                                 self.header_list,
@@ -428,9 +437,10 @@ class HoboReader():
                )
         
         for col in df.columns:
-            if not col[0] in ['#','Date Time']:
+            if not col[0] in ['#','Date Time','Time']:
                 
                 title,timezone_str,units,logger_serial_number,sensor_serial_number=col
+                #print(title)
                 
                 p_uri=get_rdf_property_uri(g,title)
                 
@@ -479,7 +489,7 @@ class HoboReader():
 if __name__=="__main__":
     
     h=HoboReader()
-    h.read_csv(r'..\tests\sample_hobo_data.csv')
+    h.read_csv(r'..\tests\sample_hobo_pendant_data.csv')
     print(h.header_list)
     print(h.datetimes[:5])
     print(h.get_dataframe())
