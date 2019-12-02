@@ -1,7 +1,7 @@
 # hoboreader
 Python package for reading Onset Hobo sensor csv files
 
-Any problems? [Please raise an Issue on GitHub][https://github.com/building-energy/hoboreader/issues]
+Any problems? [Please raise an Issue on GitHub](https://github.com/building-energy/hoboreader/issues)
 
 
 
