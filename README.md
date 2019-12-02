@@ -23,7 +23,7 @@ df=h.get_dataframe()
 
 The DataFrame looks like this:
 
-![dataframe_screenshot](df.png)
+![dataframe_screenshot](https://github.com/building-energy/hoboreader/raw/master/df.png)
 
 
 
