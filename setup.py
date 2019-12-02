@@ -9,7 +9,7 @@ setup(
     name='hoboreader', 
     version='0.0.1',  
     description='Python package for reading Onset Hobo sensor csv files',  # Required
-    url='https://github.com/stevenkfirth/hoboreader',  # Optional
+    url='https://github.com/building-energy/hoboreader',  # Optional
     author='Steven Firth',  # Optional
     author_email='s.k.firth@lboro.ac.uk',  # Optional
     packages=find_packages() # Required
