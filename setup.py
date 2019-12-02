@@ -8,7 +8,7 @@ with open("README.md", "r") as fh:
 
 setup(  
     name='hoboreader', 
-    version='v0.0.1',  
+    version='0.0.2',  
     author='Steven K Firth',  # Optional
     author_email='s.k.firth@lboro.ac.uk',  # Optional
     description='Python package for reading Onset Hobo sensor csv files',  # Required
