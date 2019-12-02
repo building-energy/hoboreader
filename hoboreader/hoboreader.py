@@ -219,17 +219,13 @@ class HoboReader():
             
 # rdf functions
     
-    def add_rdf(self,
-                g,
+    def get_rdf(self,
                 my_sensor_id=r'http:www.example.org/my_sensor',
                 my_sensor_model='My sensor model',
                 my_sensor_manufacturer='Onset',
                 my_feature_of_interest_id='rhttp:www.example.org/my_feature_of_interest'
                 ):
-        """Add the data to a rdflib Graph
-        
-        Arguments:
-            - g (rdflib.Graph): the rdf graph to add the data to
+        """Returns a rdflib graph of the data
         
         """
         
@@ -378,6 +374,8 @@ class HoboReader():
         
         # Start
         
+        g=rdflib.Graph()
+        
         g.bind('ssn', SSN)
         g.bind('sosa', SOSA)
         g.bind('time', TIME)
@@ -486,9 +484,7 @@ if __name__=="__main__":
     print(h.datetimes[:5])
     print(h.get_dataframe())
     
-    import rdflib
-    g=rdflib.Graph()
-    g=h.add_rdf(g,
+    g=h.get_rdf(
             my_sensor_id=r'http://www.example.org/MyHobo',
             my_sensor_model='Hobo Pendant',
             my_sensor_manufacturer='Onset',

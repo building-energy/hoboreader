@@ -1,9 +1,15 @@
 # hoboreader
 Python package for reading Onset Hobo sensor csv files
 
+Any problems? [Please raise an Issue on GitHub][https://github.com/building-energy/hoboreader/issues]
+
+
+
 ## To install:
 
 `pip install hoboreader`
+
+
 
 ## Quick demo:
 
@@ -19,6 +25,8 @@ The DataFrame looks like this:
 
 ![dataframe_screenshot](df.png)
 
+
+
 ## User Guide
 
 ### Importing the HoboReader class:
@@ -26,6 +34,8 @@ The DataFrame looks like this:
 ```python
 from hoboreader import HoboReader
 ```
+
+
 
 ### Creating an instance of HoboReader and reading in a Hobo data csv file:
 
@@ -42,6 +52,8 @@ or:
 h=HoboReader('sample_hobo_data.csv')
 ```
 
+
+
 ### Working with attributes
 
 As the csv file is read in, a number of attributes are populated. These are:
@@ -57,7 +69,9 @@ h.data_columns # a list of each column of the timeseries measured data
 h.datetimes # a list of the timestamps converted to Python datetime.datetime instances 
 ```
 
-See the [attributes_demo.ipynb](https://github.com/stevenkfirth/hoboreader/blob/master/demo/attributes_demo.ipynb) Jupyter Notebook in the 'demo' section for more on these attributes.
+See the [attributes_demo.ipynb](https://nbviewer.jupyter.org/github/building-energy/hoboreader/blob/master/demo/attributes_demo.ipynb) Jupyter Notebook in the 'demo' section for more on these attributes.
+
+
 
 ### Creating a Pandas DataFrame
 
@@ -67,19 +81,29 @@ A Pandas DataFrame can be created using:
 df=h.get_dataframe()
 ```
 
-See the [dataframe_demo.ipynb](https://github.com/stevenkfirth/hoboreader/blob/master/demo/dataframe_demo.ipynb) Jupyter Notebook in the 'demo' section for how to work with this dataframe.
+See the [dataframe_demo.ipynb](https://nbviewer.jupyter.org/github/stevenkfirth/hoboreader/blob/master/demo/dataframe_demo.ipynb) Jupyter Notebook in the 'demo' section for how to work with this dataframe.
+
+
 
 ### Creating rdf data
 
-The Hobo data can be converted to rdf data and added to an existing rdflib graph:
+The Hobo data can be converted to rdf data using:
 
 ``` python
-import rdflib
-g=rdflib.Graph()
-g=h.add_rdf(g)
+g=h.get_rdf()
 ```
 
-See the [rdf_demo.ipynb](https://github.com/stevenkfirth/hoboreader/blob/master/demo/rdf_demo.ipynb) Jupyter Notebook in the 'demo' section for how to work with this dataframe.
+See the [rdf_demo.ipynb](https://nbviewer.jupyter.org/github/stevenkfirth/hoboreader/blob/master/demo/rdf_demo.ipynb) Jupyter Notebook in the 'demo' section for how to work with the rdf data.
+
+
+
+### Getting the sensor serial number
+
+A function which return the sensor serial number:
+
+```python
+sn=h.get_sensor_serial_number()
+```
 
 
 
